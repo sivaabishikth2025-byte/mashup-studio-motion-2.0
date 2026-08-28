@@ -3,11 +3,9 @@ frontend:
   phases:
     preBuild:
       commands:
-        - nvm use 20 || true
         - npm ci
     build:
       commands:
-        - export FUSE_API_URL="${FUSE_API_URL:-https://1gp21rrv70.execute-api.us-east-1.amazonaws.com}"
         - npm run build
   artifacts:
     baseDirectory: .next

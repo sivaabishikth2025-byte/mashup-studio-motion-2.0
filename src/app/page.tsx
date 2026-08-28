@@ -19,7 +19,7 @@ export default function HomePage() {
   }, []);
 
   if (!ready) {
-    return <div className="min-h-screen bg-[#07060c]" />;
+    return <LoginView onDone={() => window.location.replace("/")} />;
   }
 
   if (!authed) {
