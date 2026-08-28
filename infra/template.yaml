@@ -1,0 +1,283 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Mashup Studio Motion — Infinite Mashup Studio plus Nova Reel video (showcase fork)
+
+Globals:
+  Function:
+    Timeout: 900
+    MemorySize: 1024
+    Runtime: python3.12
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+        - "*"
+      AllowHeaders:
+        - content-type
+        - authorization
+        - x-id-token
+        - x-ims-access
+      AllowMethods:
+        - GET
+        - POST
+        - DELETE
+        - OPTIONS
+
+Parameters:
+  TextModelId:
+    Type: String
+    Default: amazon.nova-pro-v1:0
+  ImageModelId:
+    Type: String
+    Default: amazon.nova-canvas-v1:0
+  VideoModelId:
+    Type: String
+    Default: amazon.nova-reel-v1:1
+  GeminiApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Google AI Studio key for Gemini image generation
+  MailFrom:
+    Type: String
+    Default: ""
+    Description: Verified SES From address for completion and digest emails
+  AppUrl:
+    Type: String
+    Default: http://localhost:3000
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: mashup-motion-users
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: mashup-motion-web
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      PreventUserExistenceErrors: ENABLED
+
+  MashupBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET, HEAD]
+            AllowedOrigins: ["*"]
+            MaxAge: 3000
+
+  MashupBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MashupBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource:
+              - !Sub "${MashupBucket.Arn}/mashups/*"
+              - !Sub "${MashupBucket.Arn}/videos/*"
+          - Sid: AllowNovaReelWrite
+            Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:AbortMultipartUpload
+            Resource: !Sub "${MashupBucket.Arn}/videos/*"
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:*"
+
+  MashupTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+        - AttributeName: gsi2pk
+          AttributeType: S
+        - AttributeName: gsi2sk
+          AttributeType: S
+        - AttributeName: gsi3pk
+          AttributeType: S
+        - AttributeName: gsi3sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      GlobalSecondaryIndexes:
+        - IndexName: byDate
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: byAll
+          KeySchema:
+            - AttributeName: gsi2pk
+              KeyType: HASH
+            - AttributeName: gsi2sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: byUser
+          KeySchema:
+            - AttributeName: gsi3pk
+              KeyType: HASH
+            - AttributeName: gsi3sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  MashupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: mashup-motion-fuse
+      Handler: app.lambda_handler
+      CodeUri: ../lambda
+      Timeout: 900
+      Environment:
+        Variables:
+          MASHUP_BUCKET: !Ref MashupBucket
+          MASHUP_TABLE: !Ref MashupTable
+          ASSET_BASE: !Sub "https://${MashupBucket}.s3.${AWS::Region}.amazonaws.com"
+          TEXT_MODEL_ID: !Ref TextModelId
+          IMAGE_MODEL_ID: !Ref ImageModelId
+          VIDEO_MODEL_ID: !Ref VideoModelId
+          VIDEO_MAX_SHOTS: "6"
+          GEMINI_API_KEY: !Ref GeminiApiKey
+          MAIL_FROM: !Ref MailFrom
+          APP_URL: !Ref AppUrl
+          DAILY_FUSE_LIMIT: "10"
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref MashupBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MashupTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:Converse
+                - bedrock:StartAsyncInvoke
+                - bedrock:GetAsyncInvoke
+                - bedrock:ListAsyncInvokes
+                - polly:SynthesizeSpeech
+                - translate:TranslateText
+                - lambda:InvokeFunction
+                - cognito-idp:GetUser
+                - ses:SendEmail
+              Resource: "*"
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins: ["*"]
+          AllowMethods: [GET, POST]
+          AllowHeaders: [content-type, authorization, x-id-token, x-ims-access]
+          MaxAge: 300
+      Events:
+        Fuse:
+          Type: HttpApi
+          Properties:
+            Path: /fuse
+            Method: POST
+        Job:
+          Type: HttpApi
+          Properties:
+            Path: /jobs/{id}
+            Method: GET
+        Mashup:
+          Type: HttpApi
+          Properties:
+            Path: /mashups/{id}
+            Method: GET
+        MashupDelete:
+          Type: HttpApi
+          Properties:
+            Path: /mashups/{id}
+            Method: DELETE
+        MashupVideo:
+          Type: HttpApi
+          Properties:
+            Path: /mashups/{id}/video
+            Method: POST
+        MashupNarrate:
+          Type: HttpApi
+          Properties:
+            Path: /mashups/{id}/narrate
+            Method: POST
+        Gallery:
+          Type: HttpApi
+          Properties:
+            Path: /gallery
+            Method: GET
+        Translate:
+          Type: HttpApi
+          Properties:
+            Path: /translate
+            Method: GET
+        Quota:
+          Type: HttpApi
+          Properties:
+            Path: /quota
+            Method: GET
+        Digest:
+          Type: Schedule
+          Properties:
+            Schedule: cron(55 23 * * ? *)
+            Input: '{"digest": true}'
+            Enabled: true
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  FunctionUrl:
+    Value: !GetAtt MashupFunctionUrl.FunctionUrl
+  AssetBase:
+    Value: !Sub "https://${MashupBucket}.s3.${AWS::Region}.amazonaws.com"
+  TableName:
+    Value: !Ref MashupTable
+  BucketName:
+    Value: !Ref MashupBucket
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient

@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+  FUSE_API_URL = "https://1gp21rrv70.execute-api.us-east-1.amazonaws.com"
+  NEXT_PUBLIC_FUSE_API_URL = "https://1gp21rrv70.execute-api.us-east-1.amazonaws.com"
+  NEXT_PUBLIC_APP_URL = "https://infinite-mashup-studio.netlify.app"
+  NEXT_PUBLIC_COGNITO_USER_POOL_ID = "us-east-1_QU5aLbg93"
+  NEXT_PUBLIC_COGNITO_CLIENT_ID = "7gj8bb4n43d55k0uon01dedt9m"
+  NEXT_PUBLIC_COGNITO_REGION = "us-east-1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
