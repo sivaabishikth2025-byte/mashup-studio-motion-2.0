@@ -1,5 +1,7 @@
 # Weekend Showcase Challenge: Infinite Mashup Studio Motion 2.0
 
+![Cover — Infinite Mashup Studio Motion 2.0](article-assets/motion-2-cover.png)
+
 `#application`
 
 **Builder tag:** @Lewis Sawe
