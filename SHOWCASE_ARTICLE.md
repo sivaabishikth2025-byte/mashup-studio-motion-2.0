@@ -2,7 +2,9 @@
 
 `#application`
 
-**Builder tag:** @[your-builder-handle]
+**Builder tag:** @Lewis Sawe
+
+**Inspired by:** [@Lewis Sawe](https://builder.aws.com/community/connect/community-users/@Lewis%20Sawe) and **The Museum That Grows** — an always-on agent that keeps building, curating, and expanding without waiting for someone to click a button. That idea stuck with me: artifacts should not sit behind glass. They should keep becoming something. Motion 2.0 is my version of that instinct applied to inventions — the still image stays, but the origin story does not freeze on the wall. Nova Reel turns lore into motion, beat by beat, the way a living museum adds new rooms instead of locking the doors at closing time.
 
 ---
 
@@ -327,10 +329,22 @@ When an entry is still being judged, **fork the product.** New repo, new stack, 
 
 ---
 
-## Builder tag
+# 8. Thank you
 
-Replace `@[your-builder-handle]` at the top with the AWS builder who inspired you before publishing on Builder Center.
+To **Ben Fowler** and the **AWS Builder Center** team — thank you for running the Summer Build Series.
+
+Three weekends ago I had an AWS account, a vague sense that Bedrock was “the AI thing,” and no real proof I could ship anything end to end. I did not have a portfolio of live URLs. I did not have Lambda workers polling async video jobs at midnight. I did not have an app that strangers could open on their phone and actually use.
+
+Now I do.
+
+This summer took me from *“I should probably learn AWS someday”* to *“something I built has been live on the internet, broadcasting on its own, for over a week.”* That shift is not small. You gave us deadlines that forced decisions, a community that made failure feel temporary, and a reason to keep going when the S3 URI was wrong for the fourth time or the deploy failed at 1 a.m.
+
+Ben — your energy in the sessions mattered. Not the polished keynote version of encouragement, but the practical *keep building* push when it would have been easier to stop at a demo that only worked locally. The Builder Center team turned a scattered summer into a sequence: build, ship, write it up, show your work.
+
+I am grateful. Seriously.
+
+If you are reading this and you have not joined a build challenge yet — do it. You will surprise yourself with what three weekends can become.
 
 ---
 
-*Word count: ~2,400*
+*Word count: ~2,650*
