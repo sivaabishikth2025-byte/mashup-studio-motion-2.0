@@ -80,6 +80,7 @@ The showcase meta-lesson: when an entry is still being judged, fork the product.
 ## Links
 
 - **Motion 2.0 repo:** https://github.com/sivaabishikth2025-byte/mashup-studio-motion-2.0
+- **Live app:** https://mashup-studio-motion-2.netlify.app
 - **Motion API:** https://bmtgkqtxz2.execute-api.us-east-1.amazonaws.com
 - **Original app (untouched):** https://infinite-mashup-studio.netlify.app
 - **Original repo (untouched):** https://github.com/sivaabishikth2025-byte/infinite-mashup-studio
