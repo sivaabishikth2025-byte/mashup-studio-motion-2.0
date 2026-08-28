@@ -44,7 +44,7 @@ See `SHOWCASE_ARTICLE.md` for the full Builder Center write-up (`#application`).
 
 ## Links
 
-- **Live app:** https://mashup-studio-motion-2.netlify.app
+- **Live app:** https://main.d2almtxm5nt63u.amplifyapp.com
 - **This repo:** https://github.com/sivaabishikth2025-byte/mashup-studio-motion-2.0
 - **Original app:** https://infinite-mashup-studio.netlify.app
 - **Original repo:** https://github.com/sivaabishikth2025-byte/infinite-mashup-studio

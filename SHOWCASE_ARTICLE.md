@@ -204,7 +204,7 @@ The meta-lesson from this showcase: when an entry is still being judged, **fork 
 
 | | URL |
 |---|---|
-| **Live app (Motion 2.0)** | https://mashup-studio-motion-2.netlify.app |
+| **Live app (Motion 2.0)** | https://main.d2almtxm5nt63u.amplifyapp.com |
 | **GitHub repo (Motion 2.0)** | https://github.com/sivaabishikth2025-byte/mashup-studio-motion-2.0 |
 | **Motion API** | https://bmtgkqtxz2.execute-api.us-east-1.amazonaws.com |
 | **Original app (v1, untouched)** | https://infinite-mashup-studio.netlify.app |
