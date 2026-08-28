@@ -6,87 +6,212 @@
 
 ---
 
+## This is not where the story started
+
+I submitted **Infinite Mashup Studio** to the AWS Creative App Challenge first — ingredients in, illustrated invention out, dossier written from the actual PNG, origin read aloud by Polly. That version shipped. It worked. Judges are still reviewing it, so the original repo and stack stay frozen.
+
+Motion 2.0 is what happened *after* I hit submit and kept thinking: **the invention still feels frozen.**
+
+The still image is the poster. The origin story is the lore. But neither one *moves*. The idea for this showcase entry came directly from that gap — not from bolting video onto a different project, but from asking what the *same* studio would look like if the invention could come alive on screen.
+
+```
+  v1 (Creative Challenge)              v2 (Weekend Showcase)
+  ───────────────────────              ───────────────────────
+  [ chips ] ──► FUSE ──► PNG         [ chips ] ──► FUSE ──► PNG  (same)
+                    │                                      │
+                    ▼                                      ▼
+              Nova Pro dossier                       Nova Pro dossier
+                    │                                      │
+                    ▼                                      ▼
+              Polly origin audio                       Polly origin audio
+                    │                                      │
+                    ▼                                      ▼
+                 THE END                            [ Animate ] ──► MP4
+                                                         │
+                                                         ▼
+                                                   AI score (WAV)
+```
+
+---
+
+## What changed from version 1 → Motion 2.0
+
+| | **v1 — Infinite Mashup Studio** | **v2 — Motion 2.0** |
+|---|---|---|
+| **Output** | Still PNG + dossier + MP3 | Still PNG + dossier + MP3 **+ story video + score** |
+| **Story role** | Text on the page | Text drives **shot list** for Nova Reel |
+| **Video length** | — | ~6 seconds per story beat (up to ~36s) |
+| **UI** | One result panel | Still **always visible** + separate Motion panel |
+| **Music** | — | Original AI score synced to clip length |
+| **AWS stack** | `infinite-mashup-studio` | New stack: `mashup-studio-motion` |
+| **Repo** | Frozen until challenge results | New repo, original untouched |
+
+Version 1 proved the creative loop. Version 2 adds a **time dimension** without throwing away anything that already worked.
+
+---
+
 ## Vision and what it does
 
-Infinite Mashup Studio was my summer creative challenge: pick two to five ingredients, fuse one invention that should not exist, and walk away with a painted illustration, a full dossier, and a spoken origin story. It worked. People loved the stills. What it did not do was *move*.
+**The problem:** Most AI art demos give you a pretty picture and a paragraph. Mashup Studio already fixed the credibility problem — Nova Pro writes the dossier *from the illustration*, not from a wish list of ingredients. But after you read the origin story, the invention still sits still on the screen like a museum label next to a painting.
 
-**Infinite Mashup Studio Motion 2.0** is the answer to that gap — without replacing what already shipped. The still image stays front and center. The origin story still drives the lore. What is new is a second act: press **Animate** and Nova Reel turns the illustration plus the written origin into a **story-length motion reel**, not a generic six-second loop.
+**The solution:** Infinite Mashup Studio Motion 2.0 keeps the full fuse pipeline and adds a second act. Press **Animate** and the origin story becomes a motion reel: Nova Lite reads the story, plans cinematic beats, and Nova Reel renders one six-second shot per beat. A longer origin produces a longer film. An original score is composed to match — Nova picks tempo, key, and mood; a synthesizer renders a unique WAV with no licensed samples.
 
-The problem I kept hearing was familiar from every “AI art” demo: you get a pretty picture and a wall of text, but nothing feels like a finished artifact. Mashup Studio already fixed the text problem by grounding Nova Pro’s dossier in the actual PNG (the model sees the image, not just the ingredient list). Motion 2.0 extends that pipeline into time. Nova Lite reads your origin story, splits it into cinematic beats, and Nova Reel shoots one six-second clip per beat — so a longer origin becomes a longer film, up to roughly thirty-six seconds. An original AI score is composed to match that length: Nova picks tempo, key, and mood; a small synthesizer renders a unique WAV with no licensed samples.
+**How it works end-to-end:**
 
-How you use it: compose chips (or upload photos), hit **Fuse**, wait for the illustration and dossier, listen to Polly read the origin, then choose a motion style — cinematic, playful, or ominous — and animate. Download the PNG, MP4, and score separately. Swap the origin voice without re-fusing. The gallery shows a **Video** badge when a reel exists.
+```
+  YOU                    STUDIO                         AWS
+  ───                    ──────                         ───
 
-The original Infinite Mashup Studio app, repo, and AWS stack remain frozen until that challenge’s results are posted. Motion 2.0 is a separate codebase, a separate SAM stack (`mashup-studio-motion`), and a deliberate fork so judges can see an evolution, not a rewrite.
+  Pick 2–5 chips  ──►  POST /fuse  ──►  Lambda worker
+  (or photos)              │              ├─ paint PNG (Stability / Gemini)
+                           │              ├─ dossier (Nova Pro + image bytes)
+                           │              ├─ origin audio (Polly)
+                           │              └─ store S3 + DynamoDB
+                           ▼
+                    Still + dossier + Listen
+                           │
+  Choose style      ──►  POST /mashups/{id}/video
+  Click Animate          │
+                           ├─ Nova Lite → story beats (JSON)
+                           ├─ resize PNG → 1280×720 keyframe
+                           ├─ Nova Reel StartAsyncInvoke
+                           ├─ poll GetAsyncInvoke
+                           ├─ copy output.mp4 → public URL
+                           └─ compose AI score WAV
+                           ▼
+                    Motion panel plays MP4 + score
+```
+
+You can download the PNG, MP4, and score separately. Swap the Polly voice without re-fusing. The gallery shows a **Video** badge when a reel exists.
 
 ---
 
 ## How you built it
 
-I copied the studio into a new folder and refused to touch the creative-challenge GitHub history. The fuse path is unchanged in spirit: API Gateway accepts a fuse request, returns a `jobId`, and a Lambda worker paints the PNG (Stability / Gemini), writes the dossier with Nova Pro via Converse (image bytes in the prompt), synthesizes origin audio with Polly, and stores assets in S3 with metadata in DynamoDB.
+I copied the studio into a new folder and refused to touch the creative-challenge Git history. The fuse path is unchanged in spirit: API Gateway returns a `jobId`, a Lambda worker paints, invents, narrates, and stores assets.
 
-Video does not belong inside that same long-running paint job. Nova Reel is asynchronous — `StartAsyncInvoke` and `GetAsyncInvoke` — and multi-beat stories can take several minutes. So **Animate** is a second job on a dedicated Motion API (`VIDEO_API_URL`). The frontend always shows the still; the Motion panel polls until `videoStatus` is `COMPLETE`.
+Video does **not** ride inside that same paint job. Nova Reel is async and multi-beat stories can take several minutes. So **Animate** is a second job on a dedicated Motion API (`VIDEO_API_URL`). The frontend always shows the still; the Motion panel polls until `videoStatus` is `COMPLETE`.
 
-Key implementation details:
+### Key code: story beats drive video length
 
-- **Story beats:** Nova Lite returns a JSON shot list from the origin text. One Reel shot per beat (~forty words), capped at six shots. Single beat uses `TEXT_VIDEO`; multiple beats use `MULTI_SHOT_MANUAL` with the same 1280×720 keyframe.
-- **S3 output:** Nova Reel is strict about output URIs — the destination must be `s3://bucket/` or `s3://bucket/prefix/` with a trailing slash. Bedrock writes under `videos/{invocation-id}/output.mp4`; the worker copies to `mashups/{id}.mp4` for public playback.
-- **Cross-stack mashups:** Fuses can still run on the original API. The Motion stack accepts the full mashup payload on `POST /mashups/{id}/video` so you can animate inventions created before the fork.
-- **Original score:** `lambda/score.py` asks Nova for musical parameters, then renders WAV procedurally — no copyrighted recordings.
-- **Fail closed:** If illustration generation fails, there is no dossier theater. If Reel fails, `videoError` surfaces in the UI instead of a silent spinner.
+Nova Lite splits the origin into a shot list. One Reel clip per beat — not a fixed six-second loop:
 
-Challenges worth naming: Reel only accepts 1280×720 RGB PNG keyframes; IAM must allow `bedrock.amazonaws.com` to `PutObject` under `videos/*`; regenerating a clip must clear the previous invocation ARN or the UI sticks on PENDING.
+```python
+def target_shot_count(text: str, max_shots: int = 6) -> int:
+    words = len(text.split())
+    # One 6-second Nova Reel shot per ~40 words of origin story.
+    return max(1, min(max_shots, (words + 39) // 40))
+
+def _nova_story_beats(record: dict, shot_count: int) -> list[str]:
+    prompt = (
+        f"You are a film director animating an invention called {name}.\n"
+        f"Origin story:\n{story}\n\n"
+        f"Split this into exactly {shot_count} visual beats..."
+    )
+    resp = bedrock.converse(modelId=TEXT_MODEL, messages=[...])
+    # Returns {"beats": ["shot one", "shot two", ...]}
+```
+
+Single beat → `TEXT_VIDEO`. Multiple beats → `MULTI_SHOT_MANUAL` with the same illustration as keyframe for every shot.
+
+### Key code: Nova Reel async invoke
+
+```python
+invocation = bedrock.start_async_invoke(
+    modelId="amazon.nova-reel-v1:1",
+    modelInput=model_input,
+    outputDataConfig={
+        "s3OutputDataConfig": {
+            "s3Uri": f"s3://{bucket}/videos/"  # trailing slash required!
+        }
+    },
+)
+```
+
+### Decisions and challenges
+
+- **Fork, don't overwrite.** Original challenge entry stays intact. New repo, new SAM stack, new Netlify URL.
+- **Still + Motion, not still *or* motion.** Users want the poster and the trailer.
+- **Separate stacks.** Fuse on the original API; video on `mashup-studio-motion`. Cross-stack animate accepts the full mashup payload so older inventions can still be animated.
+- **S3 URI sharp edge.** Nova Reel rejects `s3://bucket/videos` (no slash). It accepts `s3://bucket/videos/`. Bedrock writes to `videos/{invocation-id}/output.mp4`; the worker copies to `mashups/{id}.mp4`.
+- **Fail closed.** No illustration → no dossier theater. Reel failure → `videoError` in the UI, not a silent spinner.
 
 ---
 
-## AWS services used and architecture overview
+## AWS services and architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Infinite Mashup Studio Motion 2.0               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   ┌──────────┐    ┌─────────────────┐    ┌─────────────────────────┐  │
+│   │ Next.js  │───►│ API Gateway     │───►│ Lambda (fuse worker)    │  │
+│   │ UI       │    │ (original stack)│    │ Stability / Gemini PNG  │  │
+│   │ Netlify  │    └─────────────────┘    │ Nova Pro dossier        │  │
+│   │          │                           │ Polly MP3               │  │
+│   │          │    ┌─────────────────┐    └───────────┬─────────────┘  │
+│   │          │───►│ API Gateway     │───►│ Lambda (motion)         │  │
+│   │          │    │ (motion stack)  │    │ Nova Lite story beats   │  │
+│   └──────────┘    └─────────────────┘    │ Nova Reel async video   │  │
+│                                            │ Score synthesizer       │  │
+│                                            └───────────┬─────────────┘  │
+│                                                        │                │
+│                    ┌───────────────────────────────────┼────────────┐   │
+│                    ▼                   ▼                 ▼            ▼   │
+│              ┌──────────┐      ┌────────────┐   ┌──────────┐  ┌──────┐ │
+│              │ S3       │      │ DynamoDB   │   │ Cognito  │  │Polly │ │
+│              │ PNG MP4  │      │ jobs       │   │ users    │  │Trans │ │
+│              │ MP3 WAV  │      │ mashups    │   └──────────┘  └──────┘ │
+│              └──────────┘      └────────────┘                         │
+│                                                                         │
+│              ┌──────────────────────────────────────────────────────┐   │
+│              │ Amazon Bedrock                                     │   │
+│              │ Nova Pro · Nova Lite · Nova Reel · Stability       │   │
+│              └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 | Service | Role |
 |---|---|
-| Amazon API Gateway (HTTP API) | `/fuse`, `/jobs`, `/mashups`, `/mashups/{id}/video`, `/mashups/{id}/narrate` |
-| AWS Lambda | Fuse worker, Nova Reel poller, digest |
-| Amazon Bedrock | Stability / Gemini (still), Nova Pro (dossier from PNG), Nova Lite (story beats + score recipe), **Nova Reel** (video) |
-| Amazon S3 | PNG, MP3, MP4, WAV, Reel output prefix |
-| Amazon DynamoDB | Jobs, mashups, `videoStatus`, `videoInvocationArn`, `videoBeats` |
-| Amazon Polly | Origin narration + voice remake |
-| Amazon Translate | Dossier languages |
-| Amazon Cognito | User accounts |
-| AWS SAM / CloudFormation | Stack `mashup-studio-motion` |
-
-```text
-Browser --POST /fuse--> Original API --> Lambda worker
-  paint PNG --> Nova Pro (image in Converse) --> Polly --> S3 + DynamoDB
-
-Browser --POST /mashups/{id}/video--> Motion API --> Lambda
-  Nova Lite story beats --> resize PNG 1280x720
-  --> Bedrock StartAsyncInvoke (Nova Reel, MULTI_SHOT_MANUAL)
-  --> poll GetAsyncInvoke --> copy output.mp4 --> mashups/{id}.mp4
-  --> Nova score recipe --> synthesizer WAV
-```
-
-Motion API (deployed): `https://bmtgkqtxz2.execute-api.us-east-1.amazonaws.com`
+| **Amazon API Gateway** (HTTP API) | `/fuse`, `/jobs`, `/mashups`, `/mashups/{id}/video`, `/mashups/{id}/narrate` |
+| **AWS Lambda** | Fuse worker, Nova Reel poller, daily digest |
+| **Amazon Bedrock** | Stability/Gemini (still), Nova Pro (dossier from PNG), Nova Lite (beats + score), **Nova Reel** (video) |
+| **Amazon S3** | PNG, MP3, MP4, WAV, Reel output prefix |
+| **Amazon DynamoDB** | Jobs, mashups, `videoStatus`, `videoInvocationArn`, `videoBeats` |
+| **Amazon Polly** | Origin narration + voice remake |
+| **Amazon Translate** | Dossier in 10 languages |
+| **Amazon Cognito** | User accounts and private gallery |
+| **AWS SAM / CloudFormation** | Stack `mashup-studio-motion` |
 
 ---
 
 ## What I learned across the summer
 
-PricePilot taught me that a model call is not a product until timeouts, JSON contracts, and retry paths are honest. Sift taught me schedules and memory change the job from “click generate” to “it already ran.” Mashup Studio taught me creative AWS work is a pipeline: pixels first, language grounded in those pixels, audio third.
+**PricePilot** taught me a model call is not a product until JSON contracts, timeout splits, and retry paths are honest.
 
-Motion 2.0 added a fourth lesson: **do not ship motion as a replacement for the still.** Users want the poster *and* the trailer. It also reinforced something operational — Bedrock’s async video API has sharp edges (S3 URI validation, invocation folders, multi-minute polls) that belong in a separate stack, not bolted onto a fuse worker that already has ninety seconds of work to do.
+**Sift** taught me schedules and memory change the job from “click generate” to “it already ran.”
 
-The showcase meta-lesson: when an entry is still being judged, fork the product. New repo, new stack, new URL. Let the original stand on its own merit.
+**Mashup Studio (v1)** taught me creative work on AWS is a pipeline: **pixels first**, then language grounded in those pixels, then audio.
+
+**Motion 2.0** added a fourth beat: **time**. And a rule I will keep — never ship motion as a replacement for the still. Users want both.
+
+The meta-lesson from this showcase: when an entry is still being judged, **fork the product**. New repo, new stack, new URL. Let version 1 stand on its own merit while version 2 shows where you are going next.
 
 ---
 
 ## Links
 
-- **Motion 2.0 repo:** https://github.com/sivaabishikth2025-byte/mashup-studio-motion-2.0
-- **Live app:** https://mashup-studio-motion-2.netlify.app
-- **Motion API:** https://bmtgkqtxz2.execute-api.us-east-1.amazonaws.com
-- **Original app (untouched):** https://infinite-mashup-studio.netlify.app
-- **Original repo (untouched):** https://github.com/sivaabishikth2025-byte/infinite-mashup-studio
-
-To run the UI locally: clone the Motion 2.0 repo, copy `env.example` to `.env.local`, set `FUSE_API_URL` to the original Mashup API and `VIDEO_API_URL` to the Motion API, then `npm install && npm run dev`.
+| | URL |
+|---|---|
+| **Live app (Motion 2.0)** | https://mashup-studio-motion-2.netlify.app |
+| **GitHub repo (Motion 2.0)** | https://github.com/sivaabishikth2025-byte/mashup-studio-motion-2.0 |
+| **Motion API** | https://bmtgkqtxz2.execute-api.us-east-1.amazonaws.com |
+| **Original app (v1, untouched)** | https://infinite-mashup-studio.netlify.app |
+| **Original repo (v1, untouched)** | https://github.com/sivaabishikth2025-byte/infinite-mashup-studio |
 
 ---
 
-*Word count: ~780*
+*Replace `@[your builder handle here]` above with the AWS builder who inspired you before publishing.*
+
+*Word count: ~1,050*
